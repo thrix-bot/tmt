@@ -330,38 +330,30 @@ class ArtifactProvider(ABC):
         """
         return []
 
-    def enumerate_artifacts(
-        self, guest: Guest
-    ) -> None:  # TODO: refactor this once the NEVRA parsing is centralized.
+    def enumerate_artifacts(self, guest: Guest) -> None:
         """
         Enumerate artifacts available from this provider after its repositories
         have been installed on the guest.
         """
         for repository in self.get_repositories():
             try:
-                nevras = guest.package_manager.list_packages(repository)
+                packages = guest.package_manager.list_packages(repository)
             except tmt.utils.RunError:
                 self.logger.warning(
                     f"Failed to enumerate packages from repository '{repository.name}'."
                 )
                 continue
-            count = 0
-            for nevra in nevras:
-                nevra = nevra.strip()
-                if not nevra:
-                    continue
-                try:
-                    self._artifacts.append(
-                        ArtifactInfo(
-                            version=RpmVersion.from_nevra(nevra),
-                            provider=self,
-                            location=repository.name,
-                        )
+            for rpm_version in packages:
+                self._artifacts.append(
+                    ArtifactInfo(
+                        version=rpm_version,
+                        provider=self,
+                        location=repository.name,
                     )
-                    count += 1
-                except ValueError:
-                    self.logger.warning(f"Could not parse NEVRA '{nevra}'.")
-            self.logger.debug(f"Enumerated {count} packages from repository '{repository.name}'.")
+                )
+            self.logger.debug(
+                f"Enumerated {len(packages)} packages from repository '{repository.name}'."
+            )
 
     # B027: "... is an empty method in an abstract base class, but has
     # no abstract decorator" - expected, it's a default implementation
